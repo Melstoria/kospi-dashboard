@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>KOSPI Market Dashboard</title>
+  <!-- Plotly: head에서 동기 로드, 차트는 DOMContentLoaded 이후 렌더링 -->
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#F2F2F7; --surface:#FFFFFF; --surface2:#F9F9FB; --border:#E5E5EA;
+      --t1:#1C1C1E; --t2:#6E6E73; --t3:#AEAEB2;
+      --blue:#007AFF; --green:#34C759; --orange:#FF9500; --red:#FF3B30;
+      --purple:#AF52DE; --pink:#FF2D55; --amber:#F59E0B; --emerald:#10B981;
+      --mono:"SF Mono","Menlo",monospace;
+      --r:18px;
+      --sh:0 2px 12px rgba(0,0,0,.06),0 1px 3px rgba(0,0,0,.04);
+      --sh2:0 8px 28px rgba(0,0,0,.10),0 2px 8px rgba(0,0,0,.06);
+    }
+    body { font-family:-apple-system,"SF Pro Text","Helvetica Neue",sans-serif;
+           background:var(--bg); color:var(--t1); -webkit-font-smoothing:antialiased; }
+
+    /* NAV */
+    nav { position:sticky; top:0; z-index:200;
+          background:rgba(255,255,255,.92);
+          backdrop-filter:saturate(180%) blur(20px);
+          -webkit-backdrop-filter:saturate(180%) blur(20px);
+          border-bottom:1px solid var(--border); }
+    .nav-inner { max-width:1300px; margin:0 auto; padding:0 24px; height:56px;
+                 display:flex; align-items:center; justify-content:space-between; }
+    .nav-brand { display:flex; align-items:center; gap:10px; }
+    .nav-icon { width:28px; height:28px; border-radius:7px;
+                background:linear-gradient(135deg,#007AFF,#004FCC);
+                display:flex; align-items:center; justify-content:center; }
+    .nav-icon svg { width:14px; height:14px; fill:white; }
+    .nav-title { font-size:16px; font-weight:700; letter-spacing:-.4px; }
+    .nav-links { display:flex; gap:2px; }
+    .nav-link { padding:6px 14px; border:none; background:transparent;
+                border-radius:8px; font-size:13px; font-weight:500; color:var(--t2);
+                cursor:pointer; text-decoration:none;
+                transition:background .15s,color .15s; }
+    .nav-link:hover { background:var(--bg); color:var(--t1); }
+    .nav-link.active { background:var(--blue); color:white; }
+    .nav-meta { font-size:11px; color:var(--t3); font-family:var(--mono); }
+    @media(max-width:768px){ .nav-links { display:none; } }
+
+    /* LAYOUT */
+    main { max-width:1300px; margin:0 auto; padding:32px 24px 80px; }
+
+    /* SECTION HEADER */
+    .sec-hdr { display:flex; align-items:center; gap:12px;
+               margin-bottom:18px; padding-bottom:14px;
+               border-bottom:2px solid var(--border); }
+    .sec-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .sec-name { font-size:20px; font-weight:700; letter-spacing:-.5px; }
+    .sec-date { font-size:12px; color:var(--t2); font-family:var(--mono); }
+    .sec-badge { margin-left:auto; font-size:11px; font-weight:600;
+                 padding:4px 10px; border-radius:8px; white-space:nowrap; }
+
+    /* ENTITY BLOCK */
+    .entity-block { margin-bottom:60px; scroll-margin-top:72px; }
+
+    /* SUMMARY STRIP */
+    .summary-strip { display:grid; grid-template-columns:repeat(4,1fr);
+                     gap:12px; margin-bottom:18px; }
+    @media(max-width:860px){ .summary-strip { grid-template-columns:repeat(2,1fr); } }
+    @media(max-width:480px){ .summary-strip { grid-template-columns:1fr; } }
+
+    .scard { background:var(--surface); border-radius:var(--r);
+             padding:16px; box-shadow:var(--sh);
+             position:relative; overflow:hidden;
+             transition:box-shadow .2s, transform .2s; }
+    .scard:hover { box-shadow:var(--sh2); transform:translateY(-1px); }
+    .scard::before { content:""; position:absolute; top:0; left:0; right:0; height:3px;
+                     border-radius:var(--r) var(--r) 0 0; }
+    .sc-close::before { background:var(--blue); }
+    .sc-d50::before   { background:var(--amber); }
+    .sc-d200::before  { background:var(--emerald); }
+    .sc-guide::before { background:var(--t3); }
+
+    .scard-lbl { font-size:10px; font-weight:600; color:var(--t2);
+                 letter-spacing:.3px; text-transform:uppercase; margin-bottom:6px; }
+    .scard-val { font-family:var(--mono); font-size:20px; font-weight:700;
+                 letter-spacing:-.6px; line-height:1; margin-bottom:5px; }
+    .scard-sub { font-size:10px; color:var(--t2); font-family:var(--mono); margin-top:3px; }
+    .pill { display:inline-flex; font-family:var(--mono);
+            font-size:10px; font-weight:600; padding:2px 5px;
+            border-radius:4px; margin-left:3px; }
+    .up { color:var(--red);  background:rgba(255,59,48,.09); }
+    .dn { color:var(--blue); background:rgba(0,122,255,.09); }
+    .badge { display:inline-flex; font-size:10px; font-weight:700;
+             padding:3px 8px; border-radius:6px; margin-top:5px; }
+    .guide-row { display:flex; align-items:center; gap:6px;
+                 font-size:10px; color:var(--t2); margin-top:4px; }
+    .guide-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+
+    /* DUAL CHARTS */
+    .dual-charts { display:grid; grid-template-columns:1fr 1fr;
+                   gap:14px; margin-bottom:18px; }
+    @media(max-width:840px){ .dual-charts { grid-template-columns:1fr; } }
+
+    .chart-card { background:var(--surface); border-radius:var(--r);
+                  box-shadow:var(--sh); padding:8px 4px 4px; overflow:hidden; }
+    /* plotly div에 명시적 높이 보장 */
+    .chart-card .chart-wrap { width:100%; height:340px; }
+    .chart-card.tall .chart-wrap { height:380px; }
+
+    /* TABLE */
+    .tbl-card { background:var(--surface); border-radius:var(--r);
+                box-shadow:var(--sh); overflow:hidden; margin-bottom:18px; }
+    .tbl-hdr { padding:14px 18px 10px; border-bottom:1px solid var(--border);
+               display:flex; align-items:center; justify-content:space-between; }
+    .tbl-hdr h3 { font-size:13px; font-weight:600; }
+    .tbl-tag { font-size:10px; font-weight:500; color:var(--t2);
+               background:var(--bg); border:1px solid var(--border);
+               padding:2px 7px; border-radius:5px; }
+    table { width:100%; border-collapse:collapse; }
+    thead tr { background:var(--surface2); border-bottom:1px solid var(--border); }
+    thead th { padding:8px 14px; text-align:left; font-size:9px; font-weight:600;
+               letter-spacing:.5px; text-transform:uppercase; color:var(--t3); white-space:nowrap; }
+    thead th:not(:first-child) { text-align:right; }
+    tbody tr { border-bottom:1px solid var(--border); transition:background .1s; }
+    tbody tr:last-child { border-bottom:none; }
+    tbody tr:hover { background:var(--surface2); }
+    tbody td { padding:8px 14px; font-family:var(--mono); font-size:11px; }
+    tbody td:not(:first-child) { text-align:right; }
+    .td-date { font-size:10px; color:var(--t2); }
+    .chip { display:inline-flex; font-size:9px; font-weight:700; padding:2px 6px; border-radius:4px; }
+
+    /* COMPARE */
+    .compare-grid-4 { display:grid; grid-template-columns:repeat(4,1fr);
+                      gap:12px; margin-bottom:18px; }
+    @media(max-width:900px){ .compare-grid-4 { grid-template-columns:repeat(2,1fr); } }
+    .cmp-card { background:var(--surface); border-radius:var(--r);
+                padding:16px; box-shadow:var(--sh); }
+
+    /* LEGEND */
+    .legend { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:14px; }
+    .legend-item { display:flex; align-items:center; gap:5px;
+                   font-size:11px; color:var(--t2); }
+    .lline { width:16px; height:2px; border-radius:1px; flex-shrink:0; }
+
+    .divider { height:1px; background:var(--border); margin:40px 0; }
+
+    footer { text-align:center; padding:28px; font-size:10px; color:var(--t3); }
+    footer strong { color:var(--t2); }
+
+    /* LOADING SKELETON */
+    .chart-skeleton { width:100%; height:100%; background:var(--surface2);
+                      border-radius:8px; display:flex; align-items:center;
+                      justify-content:center; color:var(--t3); font-size:12px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="nav-brand">
+      <div class="nav-icon">
+        <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+      </div>
+      <span class="nav-title">KOSPI Dashboard</span>
+    </div>
+    <div class="nav-links">
+      <a class="nav-link" href="#section-kospi">KOSPI</a>
+      <a class="nav-link" href="#section-sec">삼성전자</a>
+      <a class="nav-link" href="#section-hynix">SK하이닉스</a>
+      <a class="nav-link" href="#section-sem">삼성전기</a>
+      <a class="nav-link" href="#section-compare">비교</a>
+    </div>
+    <span class="nav-meta">{{ updated_at }}</span>
+  </div>
+</nav>
+
+<main>
+
+<!-- =====================================================================
+     MACRO: entity block
+     ===================================================================== -->
+{% macro entity_block(key, dot_color) %}
+{% set s = summaries[key] %}
+{% set t = tables[key] %}
+
+<section class="entity-block" id="section-{{ key }}">
+  <div class="sec-hdr">
+    <div class="sec-dot" style="background:{{ dot_color }}"></div>
+    <span class="sec-name">{{ s.get('name', key) }}</span>
+    {% if s.get('date') %}
+    <span class="sec-date">{{ s.date }} 기준</span>
+    <span class="sec-badge" style="color:{{ s.status_color }};background:{{ s.status_bg }}">
+      50일 이격도 {{ s.distance50 }} &nbsp;·&nbsp; {{ s.status }}
+    </span>
+    {% endif %}
+  </div>
+
+  {% if s.get('close') %}
+  <!-- 요약 카드 4장 -->
+  <div class="summary-strip">
+    <div class="scard sc-close">
+      <div class="scard-lbl">종가</div>
+      <div class="scard-val">{{ s.close }}</div>
+      <div>
+        <span class="pill {{ 'up' if s.close_up else 'dn' }}">{{ s.close_change }}</span>
+        <span class="pill {{ 'up' if s.close_up else 'dn' }}">{{ s.close_change_pct }}</span>
+      </div>
+    </div>
+    <div class="scard sc-d50">
+      <div class="scard-lbl">50일 이격도</div>
+      <div class="scard-val" style="color:{{ s.status_color }}">{{ s.distance50 }}</div>
+      <span class="badge" style="color:{{ s.status_color }};background:{{ s.status_bg }}">{{ s.status }}</span>
+      <div class="scard-sub">전일比 {{ s.d50_change }} &nbsp;·&nbsp; 50MA {{ s.ma50 }}</div>
+    </div>
+    <div class="scard sc-d200">
+      <div class="scard-lbl">200일 이격도</div>
+      <div class="scard-val">{{ s.distance200 }}</div>
+      <div class="scard-sub">200MA {{ s.ma200 }}</div>
+    </div>
+    <div class="scard sc-guide">
+      <div class="scard-lbl">이격도 기준</div>
+      <div class="guide-row"><div class="guide-dot" style="background:#FF3B30"></div>과열 130+</div>
+      <div class="guide-row"><div class="guide-dot" style="background:#FF9500"></div>경계 120~130</div>
+      <div class="guide-row"><div class="guide-dot" style="background:#34C759"></div>정상 105~120</div>
+      <div class="guide-row"><div class="guide-dot" style="background:#007AFF"></div>과열해소 ~105</div>
+    </div>
+  </div>
+
+  <!-- 차트 2장 -->
+  <div class="dual-charts">
+    <div class="chart-card">
+      <div class="chart-wrap" id="chart-{{ key }}-price">
+        <div class="chart-skeleton">차트 로딩 중…</div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-wrap" id="chart-{{ key }}-distance">
+        <div class="chart-skeleton">차트 로딩 중…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 테이블 -->
+  <div class="tbl-card">
+    <div class="tbl-hdr">
+      <h3>최근 30거래일</h3>
+      <span class="tbl-tag" style="color:{{ s.status_color }}">{{ s.status }}</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr>
+          <th>날짜</th><th>종가</th><th>50일선</th><th>50일 이격도</th><th>상태</th>
+        </tr></thead>
+        <tbody>
+        {% for row in t %}
+        <tr>
+          <td class="td-date">{{ row.date }}</td>
+          <td>{{ row.close }}</td>
+          <td style="color:var(--t2)">{{ row.ma50 }}</td>
+          <td style="font-weight:700;color:{{ row.color }}">{{ row.distance50 }}</td>
+          <td><span class="chip" style="color:{{ row.color }};background:{{ row.bg }}">{{ row.status }}</span></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% else %}
+  <div style="padding:40px;text-align:center;color:var(--t3);font-size:13px;">
+    데이터 없음 — 로컬에서 <code>python main.py</code> 실행 후 업로드하세요.
+  </div>
+  {% endif %}
+</section>
+{% endmacro %}
+
+<!-- ===== 4개 종목 섹션 ===== -->
+{{ entity_block("kospi", "#007AFF") }}
+<div class="divider"></div>
+{{ entity_block("sec",   "#FF9500") }}
+<div class="divider"></div>
+{{ entity_block("hynix", "#AF52DE") }}
+<div class="divider"></div>
+{{ entity_block("sem",   "#FF2D55") }}
+<div class="divider"></div>
+
+<!-- ===== 비교 분석 ===== -->
+<section class="entity-block" id="section-compare">
+  <div class="sec-hdr">
+    <div class="sec-dot" style="background:#6E6E73"></div>
+    <span class="sec-name">4종목 비교 분석</span>
+    <span class="sec-date">KOSPI · 삼성전자 · SK하이닉스 · 삼성전기</span>
+  </div>
+
+  <div class="compare-grid-4">
+  {% for key, dot in [("kospi","#007AFF"),("sec","#FF9500"),("hynix","#AF52DE"),("sem","#FF2D55")] %}
+    {% set s = summaries[key] %}
+    <div class="cmp-card" style="border-top:3px solid {{ dot }};">
+      <div class="scard-lbl">{{ s.get('name', key) }}</div>
+      {% if s.get('distance50') %}
+      <div class="scard-val" style="color:{{ s.status_color }};font-size:22px;">{{ s.distance50 }}</div>
+      <span class="badge" style="color:{{ s.status_color }};background:{{ s.status_bg }}">{{ s.status }}</span>
+      <div class="scard-sub" style="margin-top:5px;">전일比 {{ s.d50_change }}</div>
+      {% else %}
+      <div class="scard-sub" style="margin-top:10px;">데이터 없음</div>
+      {% endif %}
+    </div>
+  {% endfor %}
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="lline" style="background:#007AFF"></div><span>KOSPI</span></div>
+    <div class="legend-item"><div class="lline" style="background:#FF9500"></div><span>삼성전자</span></div>
+    <div class="legend-item"><div class="lline" style="background:#AF52DE"></div><span>SK하이닉스</span></div>
+    <div class="legend-item"><div class="lline" style="background:#FF2D55"></div><span>삼성전기</span></div>
+  </div>
+
+  <div class="dual-charts">
+    <div class="chart-card tall">
+      <div class="chart-wrap" id="chart-compare-distance" style="height:380px;">
+        <div class="chart-skeleton">차트 로딩 중…</div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-wrap" id="chart-compare-relative">
+        <div class="chart-skeleton">차트 로딩 중…</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <strong>KOSPI Market Dashboard</strong> ·
+  데이터: FinanceDataReader (KRX Cache / NAVER Finance) ·
+  본 대시보드는 투자 참고용이며 최종 판단의 책임은 본인에게 있습니다.
+</footer>
+
+<!-- =====================================================================
+     모든 차트 데이터를 JSON으로 임베드 → DOMContentLoaded 이후 렌더링
+     (Plotly CDN 로드 완료 보장 후 newPlot 호출)
+     ===================================================================== -->
+<script>
+const CHARTS_DATA = {{ charts_json }};
+</script>
+
+<script>
+const PLOTLY_CONFIG = { displayModeBar: false, responsive: true };
+
+function renderChart(divId, spec, height) {
+  const el = document.getElementById(divId);
+  if (!el || !spec) return;
+  // 스켈레톤 제거
+  el.innerHTML = '';
+  el.style.height = (height || 340) + 'px';
+  Plotly.newPlot(el, spec.data, spec.layout, PLOTLY_CONFIG);
+}
+
+function renderAll() {
+  const d = CHARTS_DATA;
+  renderChart('chart-kospi-price',        d.kospi_price,       340);
+  renderChart('chart-kospi-distance',     d.kospi_distance,    340);
+  renderChart('chart-sec-price',          d.sec_price,         340);
+  renderChart('chart-sec-distance',       d.sec_distance,      340);
+  renderChart('chart-hynix-price',        d.hynix_price,       340);
+  renderChart('chart-hynix-distance',     d.hynix_distance,    340);
+  renderChart('chart-sem-price',          d.sem_price,         340);
+  renderChart('chart-sem-distance',       d.sem_distance,      340);
+  renderChart('chart-compare-distance',   d.compare_distance,  380);
+  renderChart('chart-compare-relative',   d.compare_relative,  340);
+}
+
+// Plotly가 반드시 로드된 뒤 실행
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', renderAll);
+} else {
+  renderAll();
+}
+
+// ── Sticky nav active highlight ──────────────────────────────────────────────
+const sections  = ['kospi','sec','hynix','sem','compare'];
+const navLinks  = document.querySelectorAll('.nav-link');
+
+function updateNav() {
+  let current = '';
+  sections.forEach(id => {
+    const el = document.getElementById('section-' + id);
+    if (el && el.getBoundingClientRect().top <= 80) current = id;
+  });
+  navLinks.forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === '#section-' + current);
+  });
+}
+window.addEventListener('scroll', updateNav, { passive: true });
+updateNav();
+
+navLinks.forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const target = document.querySelector(a.getAttribute('href'));
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+
+// ── Resize ───────────────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  document.querySelectorAll('.js-plotly-plot').forEach(el =>
+    Plotly.relayout(el, { autosize: true })
+  );
+}, { passive: true });
+</script>
+</body>
+</html>

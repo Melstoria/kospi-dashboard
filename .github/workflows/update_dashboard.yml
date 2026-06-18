@@ -1,0 +1,52 @@
+name: Update KOSPI Dashboard
+
+on:
+  # 평일(월~금) 16:10 KST = 07:10 UTC 자동 실행
+  schedule:
+    - cron: '10 7 * * 1-5'
+
+  # 언제든 수동 실행 가능 (GitHub Actions 탭 → Run workflow)
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 레포 체크아웃 (data/ CSV 포함)
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 전체 히스토리 (CSV 누적용)
+
+      # 2. Python 설치
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # 3. 패키지 설치
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # 4. 대시보드 생성
+      - name: Run dashboard pipeline
+        run: python main.py --no-browser
+
+      # 5. output/dashboard.html → docs/index.html 로 복사
+      #    GitHub Pages는 docs/ 폴더를 서빙함
+      - name: Copy dashboard to docs/
+        run: |
+          mkdir -p docs
+          cp output/dashboard.html docs/index.html
+
+      # 6. 변경된 CSV + index.html 커밋 & 푸시
+      - name: Commit and push updates
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/ docs/
+          # 변경사항 없으면 커밋 건너뜀
+          git diff --cached --quiet || git commit -m "chore: auto-update dashboard $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M KST')"
+          git push

@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pyo
+dashboard_run.log
+output/
+.DS_Store
+*.egg-info/

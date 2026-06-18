@@ -1,0 +1,5 @@
+finance-datareader>=0.9.50
+pandas>=2.0.0
+plotly>=5.20.0
+jinja2>=3.1.0
+schedule>=1.2.0
