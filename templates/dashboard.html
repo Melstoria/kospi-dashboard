@@ -4,7 +4,12 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>KOSPI Market Dashboard</title>
-  <!-- Plotly: head에서 동기 로드, 차트는 DOMContentLoaded 이후 렌더링 -->
+
+  <!-- 캐시 방지: 항상 최신 버전 로드 -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
+
   <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -28,8 +33,8 @@
           -webkit-backdrop-filter:saturate(180%) blur(20px);
           border-bottom:1px solid var(--border); }
     .nav-inner { max-width:1300px; margin:0 auto; padding:0 24px; height:56px;
-                 display:flex; align-items:center; justify-content:space-between; }
-    .nav-brand { display:flex; align-items:center; gap:10px; }
+                 display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .nav-brand { display:flex; align-items:center; gap:10px; flex-shrink:0; }
     .nav-icon { width:28px; height:28px; border-radius:7px;
                 background:linear-gradient(135deg,#007AFF,#004FCC);
                 display:flex; align-items:center; justify-content:center; }
@@ -42,30 +47,106 @@
                 transition:background .15s,color .15s; }
     .nav-link:hover { background:var(--bg); color:var(--t1); }
     .nav-link.active { background:var(--blue); color:white; }
-    .nav-meta { font-size:11px; color:var(--t3); font-family:var(--mono); }
+    .nav-meta { font-size:11px; color:var(--t3); font-family:var(--mono); flex-shrink:0; }
     @media(max-width:768px){ .nav-links { display:none; } }
 
     /* LAYOUT */
-    main { max-width:1300px; margin:0 auto; padding:32px 24px 80px; }
+    main { max-width:1300px; margin:0 auto; padding:28px 20px 80px; }
+
+    /* ── HERO CARD (이격도 메인) ── */
+    .hero-card {
+      background:var(--surface);
+      border-radius:24px;
+      box-shadow:var(--sh2);
+      padding:32px 28px 24px;
+      margin-bottom:16px;
+      position:relative;
+      overflow:hidden;
+    }
+    .hero-card::before {
+      content:"";
+      position:absolute; top:0; left:0; right:0; height:5px;
+      border-radius:24px 24px 0 0;
+    }
+    .hero-label {
+      font-size:12px; font-weight:600; letter-spacing:.5px;
+      text-transform:uppercase; color:var(--t2); margin-bottom:10px;
+    }
+    /* 이격도 숫자 — 제일 크게 */
+    .hero-distance {
+      font-family:var(--mono);
+      font-size:72px;
+      font-weight:800;
+      letter-spacing:-3px;
+      line-height:1;
+      margin-bottom:10px;
+    }
+    @media(max-width:480px){ .hero-distance { font-size:52px; letter-spacing:-2px; } }
+
+    /* 상태 배지 — 크게 */
+    .hero-status {
+      display:inline-flex; align-items:center; gap:8px;
+      font-size:20px; font-weight:700;
+      padding:8px 18px; border-radius:12px;
+      margin-bottom:20px;
+    }
+    .hero-status-dot { width:10px; height:10px; border-radius:50%; }
+
+    /* 하단 보조 정보 */
+    .hero-meta-row {
+      display:flex; flex-wrap:wrap; gap:20px;
+      padding-top:18px;
+      border-top:1px solid var(--border);
+    }
+    .hero-meta-item { display:flex; flex-direction:column; gap:3px; }
+    .hero-meta-lbl { font-size:10px; font-weight:600; color:var(--t3);
+                     letter-spacing:.4px; text-transform:uppercase; }
+    .hero-meta-val { font-family:var(--mono); font-size:15px; font-weight:600; color:var(--t1); }
+    .hero-meta-sub { font-family:var(--mono); font-size:11px; color:var(--t2); }
+
+    /* 이격도 구간 표시 바 */
+    .hero-gauge {
+      margin-bottom:20px;
+      display:flex; flex-direction:column; gap:6px;
+    }
+    .gauge-bar {
+      height:8px; border-radius:4px;
+      background:linear-gradient(to right, #007AFF 0%, #34C759 35%, #FF9500 65%, #FF3B30 100%);
+      position:relative;
+    }
+    .gauge-marker {
+      position:absolute; top:-4px;
+      width:16px; height:16px; border-radius:50%;
+      background:white; border:3px solid currentColor;
+      transform:translateX(-50%);
+      transition:left .5s ease;
+      box-shadow:0 2px 6px rgba(0,0,0,.2);
+    }
+    .gauge-labels {
+      display:flex; justify-content:space-between;
+      font-size:9px; color:var(--t3); font-family:var(--mono);
+    }
+
+    /* ENTITY BLOCK */
+    .entity-block { margin-bottom:56px; scroll-margin-top:72px; }
 
     /* SECTION HEADER */
     .sec-hdr { display:flex; align-items:center; gap:12px;
-               margin-bottom:18px; padding-bottom:14px;
+               margin-bottom:16px; padding-bottom:12px;
                border-bottom:2px solid var(--border); }
     .sec-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-    .sec-name { font-size:20px; font-weight:700; letter-spacing:-.5px; }
-    .sec-date { font-size:12px; color:var(--t2); font-family:var(--mono); }
+    .sec-name { font-size:18px; font-weight:700; letter-spacing:-.4px; }
+    .sec-date { font-size:11px; color:var(--t2); font-family:var(--mono); }
     .sec-badge { margin-left:auto; font-size:11px; font-weight:600;
                  padding:4px 10px; border-radius:8px; white-space:nowrap; }
 
-    /* ENTITY BLOCK */
-    .entity-block { margin-bottom:60px; scroll-margin-top:72px; }
-
-    /* SUMMARY STRIP */
-    .summary-strip { display:grid; grid-template-columns:repeat(4,1fr);
-                     gap:12px; margin-bottom:18px; }
+    /* SUMMARY STRIP — 종가 + 이격도 2칸 */
+    .summary-strip {
+      display:grid; grid-template-columns:1fr 1fr 1fr 1fr;
+      gap:12px; margin-bottom:16px;
+    }
     @media(max-width:860px){ .summary-strip { grid-template-columns:repeat(2,1fr); } }
-    @media(max-width:480px){ .summary-strip { grid-template-columns:1fr; } }
+    @media(max-width:480px){ .summary-strip { grid-template-columns:1fr 1fr; } }
 
     .scard { background:var(--surface); border-radius:var(--r);
              padding:16px; box-shadow:var(--sh);
@@ -74,10 +155,10 @@
     .scard:hover { box-shadow:var(--sh2); transform:translateY(-1px); }
     .scard::before { content:""; position:absolute; top:0; left:0; right:0; height:3px;
                      border-radius:var(--r) var(--r) 0 0; }
-    .sc-close::before { background:var(--blue); }
-    .sc-d50::before   { background:var(--amber); }
-    .sc-d200::before  { background:var(--emerald); }
-    .sc-guide::before { background:var(--t3); }
+    .sc-close::before  { background:var(--blue); }
+    .sc-d50::before    { background:var(--amber); }
+    .sc-d200::before   { background:var(--emerald); }
+    .sc-guide::before  { background:var(--t3); }
 
     .scard-lbl { font-size:10px; font-weight:600; color:var(--t2);
                  letter-spacing:.3px; text-transform:uppercase; margin-bottom:6px; }
@@ -97,18 +178,17 @@
 
     /* DUAL CHARTS */
     .dual-charts { display:grid; grid-template-columns:1fr 1fr;
-                   gap:14px; margin-bottom:18px; }
+                   gap:14px; margin-bottom:16px; }
     @media(max-width:840px){ .dual-charts { grid-template-columns:1fr; } }
 
     .chart-card { background:var(--surface); border-radius:var(--r);
                   box-shadow:var(--sh); padding:8px 4px 4px; overflow:hidden; }
-    /* plotly div에 명시적 높이 보장 */
-    .chart-card .chart-wrap { width:100%; height:340px; }
+    .chart-wrap { width:100%; height:340px; }
     .chart-card.tall .chart-wrap { height:380px; }
 
     /* TABLE */
     .tbl-card { background:var(--surface); border-radius:var(--r);
-                box-shadow:var(--sh); overflow:hidden; margin-bottom:18px; }
+                box-shadow:var(--sh); overflow:hidden; margin-bottom:16px; }
     .tbl-hdr { padding:14px 18px 10px; border-bottom:1px solid var(--border);
                display:flex; align-items:center; justify-content:space-between; }
     .tbl-hdr h3 { font-size:13px; font-weight:600; }
@@ -130,7 +210,7 @@
 
     /* COMPARE */
     .compare-grid-4 { display:grid; grid-template-columns:repeat(4,1fr);
-                      gap:12px; margin-bottom:18px; }
+                      gap:12px; margin-bottom:16px; }
     @media(max-width:900px){ .compare-grid-4 { grid-template-columns:repeat(2,1fr); } }
     .cmp-card { background:var(--surface); border-radius:var(--r);
                 padding:16px; box-shadow:var(--sh); }
@@ -146,7 +226,6 @@
     footer { text-align:center; padding:28px; font-size:10px; color:var(--t3); }
     footer strong { color:var(--t2); }
 
-    /* LOADING SKELETON */
     .chart-skeleton { width:100%; height:100%; background:var(--surface2);
                       border-radius:8px; display:flex; align-items:center;
                       justify-content:center; color:var(--t3); font-size:12px; }
@@ -175,53 +254,66 @@
 
 <main>
 
-<!-- =====================================================================
-     MACRO: entity block
-     ===================================================================== -->
 {% macro entity_block(key, dot_color) %}
 {% set s = summaries[key] %}
 {% set t = tables[key] %}
 
 <section class="entity-block" id="section-{{ key }}">
-  <div class="sec-hdr">
-    <div class="sec-dot" style="background:{{ dot_color }}"></div>
-    <span class="sec-name">{{ s.get('name', key) }}</span>
-    {% if s.get('date') %}
-    <span class="sec-date">{{ s.date }} 기준</span>
-    <span class="sec-badge" style="color:{{ s.status_color }};background:{{ s.status_bg }}">
-      50일 이격도 {{ s.distance50 }} &nbsp;·&nbsp; {{ s.status }}
-    </span>
-    {% endif %}
-  </div>
 
   {% if s.get('close') %}
-  <!-- 요약 카드 4장 -->
-  <div class="summary-strip">
-    <div class="scard sc-close">
-      <div class="scard-lbl">종가</div>
-      <div class="scard-val">{{ s.close }}</div>
-      <div>
-        <span class="pill {{ 'up' if s.close_up else 'dn' }}">{{ s.close_change }}</span>
-        <span class="pill {{ 'up' if s.close_up else 'dn' }}">{{ s.close_change_pct }}</span>
+
+  <!-- ── HERO: 이격도 메인 카드 ── -->
+  <div class="hero-card" style="border-top:5px solid {{ s.status_color }};">
+
+    <div class="hero-label">{{ s.get('name', key) }} &nbsp;·&nbsp; 50일 이격도</div>
+
+    <!-- 핵심: 이격도 숫자 초대형 표시 -->
+    <div class="hero-distance" style="color:{{ s.status_color }}">{{ s.distance50 }}</div>
+
+    <!-- 상태 배지 -->
+    <div class="hero-status" style="color:{{ s.status_color }};background:{{ s.status_bg }}">
+      <div class="hero-status-dot" style="background:{{ s.status_color }}"></div>
+      {{ s.status }}
+    </div>
+
+    <!-- 이격도 게이지 바 -->
+    {% set gauge_pct = ((s.distance50_raw - 90) / 60 * 100) | round(1) %}
+    {% set gauge_pct = [0, [100, gauge_pct] | min] | max %}
+    <div class="hero-gauge">
+      <div class="gauge-bar">
+        <div class="gauge-marker" style="left:{{ gauge_pct }}%;color:{{ s.status_color }}"></div>
+      </div>
+      <div class="gauge-labels">
+        <span>90</span><span>과열해소 105</span><span>경계 120</span><span>과열 130</span><span>150</span>
       </div>
     </div>
-    <div class="scard sc-d50">
-      <div class="scard-lbl">50일 이격도</div>
-      <div class="scard-val" style="color:{{ s.status_color }}">{{ s.distance50 }}</div>
-      <span class="badge" style="color:{{ s.status_color }};background:{{ s.status_bg }}">{{ s.status }}</span>
-      <div class="scard-sub">전일比 {{ s.d50_change }} &nbsp;·&nbsp; 50MA {{ s.ma50 }}</div>
-    </div>
-    <div class="scard sc-d200">
-      <div class="scard-lbl">200일 이격도</div>
-      <div class="scard-val">{{ s.distance200 }}</div>
-      <div class="scard-sub">200MA {{ s.ma200 }}</div>
-    </div>
-    <div class="scard sc-guide">
-      <div class="scard-lbl">이격도 기준</div>
-      <div class="guide-row"><div class="guide-dot" style="background:#FF3B30"></div>과열 130+</div>
-      <div class="guide-row"><div class="guide-dot" style="background:#FF9500"></div>경계 120~130</div>
-      <div class="guide-row"><div class="guide-dot" style="background:#34C759"></div>정상 105~120</div>
-      <div class="guide-row"><div class="guide-dot" style="background:#007AFF"></div>과열해소 ~105</div>
+
+    <!-- 보조 지표: 종가 / 50일선 / 200일 이격도 / 전일비 -->
+    <div class="hero-meta-row">
+      <div class="hero-meta-item">
+        <span class="hero-meta-lbl">종가</span>
+        <span class="hero-meta-val">{{ s.close }}</span>
+        <span class="hero-meta-sub">
+          <span style="color:{{ '#FF3B30' if s.close_up else '#007AFF' }}">
+            {{ s.close_change }} ({{ s.close_change_pct }})
+          </span>
+        </span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-lbl">50일선</span>
+        <span class="hero-meta-val">{{ s.ma50 }}</span>
+        <span class="hero-meta-sub">전일比 {{ s.d50_change }}</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-lbl">200일 이격도</span>
+        <span class="hero-meta-val">{{ s.distance200 }}</span>
+        <span class="hero-meta-sub">200MA {{ s.ma200 }}</span>
+      </div>
+      <div class="hero-meta-item">
+        <span class="hero-meta-lbl">기준일</span>
+        <span class="hero-meta-val" style="font-size:13px">{{ s.date }}</span>
+        <span class="hero-meta-sub">16:10 자동갱신</span>
+      </div>
     </div>
   </div>
 
@@ -267,13 +359,22 @@
 
   {% else %}
   <div style="padding:40px;text-align:center;color:var(--t3);font-size:13px;">
-    데이터 없음 — 로컬에서 <code>python main.py</code> 실행 후 업로드하세요.
+    데이터 없음
   </div>
   {% endif %}
+
+  <!-- 섹션 구분선 + 이름 -->
+  <div style="display:flex;align-items:center;gap:10px;margin-top:40px;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid var(--border);">
+    <div style="width:10px;height:10px;border-radius:50%;background:{{ dot_color }};flex-shrink:0;"></div>
+    <span style="font-size:18px;font-weight:700;letter-spacing:-.4px;">{{ s.get('name', key) }}</span>
+    {% if s.get('date') %}
+    <span style="font-size:11px;color:var(--t2);font-family:var(--mono);">{{ s.date }} 기준</span>
+    {% endif %}
+  </div>
+
 </section>
 {% endmacro %}
 
-<!-- ===== 4개 종목 섹션 ===== -->
 {{ entity_block("kospi", "#007AFF") }}
 <div class="divider"></div>
 {{ entity_block("sec",   "#FF9500") }}
@@ -283,12 +384,12 @@
 {{ entity_block("sem",   "#FF2D55") }}
 <div class="divider"></div>
 
-<!-- ===== 비교 분석 ===== -->
+<!-- 비교 분석 -->
 <section class="entity-block" id="section-compare">
-  <div class="sec-hdr">
-    <div class="sec-dot" style="background:#6E6E73"></div>
-    <span class="sec-name">4종목 비교 분석</span>
-    <span class="sec-date">KOSPI · 삼성전자 · SK하이닉스 · 삼성전기</span>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid var(--border);">
+    <div style="width:10px;height:10px;border-radius:50%;background:#6E6E73;flex-shrink:0;"></div>
+    <span style="font-size:18px;font-weight:700;">4종목 비교 분석</span>
+    <span style="font-size:11px;color:var(--t2);font-family:var(--mono);">KOSPI · 삼성전자 · SK하이닉스 · 삼성전기</span>
   </div>
 
   <div class="compare-grid-4">
@@ -297,9 +398,9 @@
     <div class="cmp-card" style="border-top:3px solid {{ dot }};">
       <div class="scard-lbl">{{ s.get('name', key) }}</div>
       {% if s.get('distance50') %}
-      <div class="scard-val" style="color:{{ s.status_color }};font-size:22px;">{{ s.distance50 }}</div>
+      <div class="scard-val" style="color:{{ s.status_color }};font-size:28px;letter-spacing:-1px;">{{ s.distance50 }}</div>
       <span class="badge" style="color:{{ s.status_color }};background:{{ s.status_bg }}">{{ s.status }}</span>
-      <div class="scard-sub" style="margin-top:5px;">전일比 {{ s.d50_change }}</div>
+      <div class="scard-sub" style="margin-top:6px;">전일比 {{ s.d50_change }}</div>
       {% else %}
       <div class="scard-sub" style="margin-top:10px;">데이터 없음</div>
       {% endif %}
@@ -332,14 +433,10 @@
 
 <footer>
   <strong>KOSPI Market Dashboard</strong> ·
-  데이터: FinanceDataReader (KRX Cache / NAVER Finance) ·
+  데이터: FinanceDataReader (KRX / NAVER Finance) ·
   본 대시보드는 투자 참고용이며 최종 판단의 책임은 본인에게 있습니다.
 </footer>
 
-<!-- =====================================================================
-     모든 차트 데이터를 JSON으로 임베드 → DOMContentLoaded 이후 렌더링
-     (Plotly CDN 로드 완료 보장 후 newPlot 호출)
-     ===================================================================== -->
 <script>
 const CHARTS_DATA = {{ charts_json }};
 </script>
@@ -350,7 +447,6 @@ const PLOTLY_CONFIG = { displayModeBar: false, responsive: true };
 function renderChart(divId, spec, height) {
   const el = document.getElementById(divId);
   if (!el || !spec) return;
-  // 스켈레톤 제거
   el.innerHTML = '';
   el.style.height = (height || 340) + 'px';
   Plotly.newPlot(el, spec.data, spec.layout, PLOTLY_CONFIG);
@@ -358,29 +454,32 @@ function renderChart(divId, spec, height) {
 
 function renderAll() {
   const d = CHARTS_DATA;
-  renderChart('chart-kospi-price',        d.kospi_price,       340);
-  renderChart('chart-kospi-distance',     d.kospi_distance,    340);
-  renderChart('chart-sec-price',          d.sec_price,         340);
-  renderChart('chart-sec-distance',       d.sec_distance,      340);
-  renderChart('chart-hynix-price',        d.hynix_price,       340);
-  renderChart('chart-hynix-distance',     d.hynix_distance,    340);
-  renderChart('chart-sem-price',          d.sem_price,         340);
-  renderChart('chart-sem-distance',       d.sem_distance,      340);
-  renderChart('chart-compare-distance',   d.compare_distance,  380);
-  renderChart('chart-compare-relative',   d.compare_relative,  340);
+  renderChart('chart-kospi-price',      d.kospi_price,      340);
+  renderChart('chart-kospi-distance',   d.kospi_distance,   340);
+  renderChart('chart-sec-price',        d.sec_price,        340);
+  renderChart('chart-sec-distance',     d.sec_distance,     340);
+  renderChart('chart-hynix-price',      d.hynix_price,      340);
+  renderChart('chart-hynix-distance',   d.hynix_distance,   340);
+  renderChart('chart-sem-price',        d.sem_price,        340);
+  renderChart('chart-sem-distance',     d.sem_distance,     340);
+  renderChart('chart-compare-distance', d.compare_distance, 380);
+  renderChart('chart-compare-relative', d.compare_relative, 340);
 }
 
-// Plotly가 반드시 로드된 뒤 실행
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', renderAll);
 } else {
   renderAll();
 }
 
-// ── Sticky nav active highlight ──────────────────────────────────────────────
-const sections  = ['kospi','sec','hynix','sem','compare'];
-const navLinks  = document.querySelectorAll('.nav-link');
+// 캐시 방지: 페이지 로드 시 최신 버전 확인
+window.addEventListener('pageshow', function(e) {
+  if (e.persisted) window.location.reload();
+});
 
+// sticky nav active
+const sections = ['kospi','sec','hynix','sem','compare'];
+const navLinks = document.querySelectorAll('.nav-link');
 function updateNav() {
   let current = '';
   sections.forEach(id => {
@@ -393,7 +492,6 @@ function updateNav() {
 }
 window.addEventListener('scroll', updateNav, { passive: true });
 updateNav();
-
 navLinks.forEach(a => {
   a.addEventListener('click', e => {
     e.preventDefault();
@@ -402,7 +500,6 @@ navLinks.forEach(a => {
   });
 });
 
-// ── Resize ───────────────────────────────────────────────────────────────────
 window.addEventListener('resize', () => {
   document.querySelectorAll('.js-plotly-plot').forEach(el =>
     Plotly.relayout(el, { autosize: true })
