@@ -1,11 +1,6 @@
 """
 main.py
 KOSPI Market Dashboard — 메인 실행 파일
-
-실행:
-  python main.py              → 즉시 실행 + 브라우저 오픈
-  python main.py --no-browser → 브라우저 없이
-  python main.py --watch      → 매일 16:05 자동 실행
 """
 
 import argparse
@@ -32,7 +27,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-OUTPUT_HTML = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output", "dashboard.html")
+BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_DIR  = os.path.join(BASE_DIR, "output")
+OUTPUT_HTML = os.path.join(OUTPUT_DIR, "dashboard.html")
 
 
 def run_pipeline(open_browser: bool = False) -> bool:
@@ -41,7 +38,9 @@ def run_pipeline(open_browser: bool = False) -> bool:
     logger.info("KOSPI Dashboard Pipeline 시작")
     logger.info("=" * 60)
     try:
-        # Step 1: 전체 종목 수집 (KOSPI + 삼성전자 + SK하이닉스 + 삼성전기)
+        # output 폴더 없으면 자동 생성 (GitHub Actions 환경 대비)
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+
         logger.info("[1/3] 전체 데이터 수집 중...")
         all_data = collect_all()
         if not all_data:
@@ -50,10 +49,8 @@ def run_pipeline(open_browser: bool = False) -> bool:
         for key, df in all_data.items():
             logger.info(f"      [{key}] {len(df)}거래일 (최신: {df.index[-1].date()})")
 
-        # Step 2: (지표 계산은 collect_all 내부에서 완료)
         logger.info("[2/3] 지표 계산 완료 (MA50 / MA200 / 이격도)")
 
-        # Step 3: 대시보드 생성
         logger.info("[3/3] HTML 대시보드 생성 중...")
         output_path = render_dashboard(all_data, OUTPUT_HTML)
         logger.info(f"      생성 완료 → {output_path}")
