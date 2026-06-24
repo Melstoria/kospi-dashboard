@@ -2,7 +2,7 @@ name: Update KOSPI Dashboard
 
 on:
   schedule:
-    - cron: '10 7 * * 1-5'
+    - cron: '30 7 * * 1-5'
   workflow_dispatch:
 
 jobs:
